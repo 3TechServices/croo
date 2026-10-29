@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CROO System Architecture & Network Topology</title>
+    <style>
+        /* -------------------------------------------------------------
+       RESET & BASE STYLING (Dark Navy Theme with Subtle Grid)
+    ------------------------------------------------------------- */
+        :root {
+            --bg-base: #060a13;
+            --bg-grid: rgba(255, 255, 255, 0.035);
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --card-border: rgba(255, 255, 255, 0.08);
+
+            /* Section Theme Colors */
+            --backend-color: #00aaff;
+            --backend-bg: rgba(0, 170, 255, 0.08);
+            --backend-glow: rgba(0, 170, 255, 0.28);
+            --backend-card-glow: rgba(0, 170, 255, 0.45);
+
+            --server-color: #7b78ff;
+            --server-bg: rgba(123, 120, 255, 0.08);
+            --server-glow: rgba(123, 120, 255, 0.28);
+            --server-card-glow: rgba(123, 120, 255, 0.45);
+
+            --ui-color: #ffaa00;
+            --ui-bg: rgba(255, 170, 0, 0.08);
+            --ui-glow: rgba(255, 170, 0, 0.28);
+            --ui-card-glow: rgba(255, 170, 0, 0.45);
+
+            --text-main: #f0f4f8;
+            --text-muted: #8e9bb0;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "SF Mono", "Fira Code", Consolas, Menlo, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            background-image:
+                linear-gradient(to right, var(--bg-grid) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--bg-grid) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 45px 25px 45px;
+        }
+
+        /* -------------------------------------------------------------
+       HEADER SECTION
+    ------------------------------------------------------------- */
+        header {
+            width: 100%;
+            max-width: 1780px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 18px;
+        }
+
+        .title-group h1 {
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .subtitle-badge {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #00d2ff;
+            background: rgba(0, 210, 255, 0.12);
+            padding: 4px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+        }
+
+        .kiosk-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .kiosk-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+        }
+
+        .kiosk-indicator.paused {
+            background: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+
+        /* -------------------------------------------------------------
+       5-COLUMN GRID CONTAINER
+    ------------------------------------------------------------- */
+        main.diagram-wrapper {
+            width: 100%;
+            max-width: 1780px;
+            height: 76vh;
+            display: grid;
+            grid-template-columns: 1fr 140px 1fr 140px 1fr;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* -------------------------------------------------------------
+       SECTION COLUMNS
+    ------------------------------------------------------------- */
+        .section-col {
+            height: 100%;
+            border-radius: 18px;
+            background: rgba(14, 20, 36, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                border-color 0.5s ease,
+                box-shadow 0.5s ease,
+                filter 0.5s ease;
+        }
+
+        .section-col::before {
+            content: '';
+            position: absolute;
+            top: 0px;
+            left: 2px;
+            right: 2px;
+            height: 9px;
+            border-radius: 15px 15px 0 0;
+            transition: background-color 0.4s ease;
+        }
+
+        .section-col[data-step="1"]::before {
+            background-color: var(--backend-color);
+        }
+
+        .section-col[data-step="2"]::before {
+            background-color: var(--server-color);
+        }
+
+        .section-col[data-step="3"]::before {
+            background-color: var(--ui-color);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 22px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .section-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .section-col[data-step="1"] .section-icon {
+            background: rgba(0, 170, 255, 0.12);
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            color: var(--backend-color);
+        }
+
+        .section-col[data-step="2"] .section-icon {
+            background: rgba(123, 120, 255, 0.12);
+            border: 1px solid rgba(123, 120, 255, 0.3);
+            color: var(--server-color);
+        }
+
+        .section-col[data-step="3"] .section-icon {
+            background: rgba(255, 170, 0, 0.12);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            color: var(--ui-color);
+        }
+
+        .section-headings {
+            flex: 1;
+        }
+
+        .section-headings h2 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .section-subtext {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .tag-pill {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .section-col[data-step="1"] .tag-pill {
+            background: rgba(0, 170, 255, 0.15);
+            border: 1px solid rgba(0, 170, 255, 0.35);
+            color: var(--backend-color);
+        }
+
+        .section-col[data-step="2"] .tag-pill {
+            background: rgba(123, 120, 255, 0.15);
+            border: 1px solid rgba(123, 120, 255, 0.35);
+            color: var(--server-color);
+        }
+
+        .section-col[data-step="3"] .tag-pill {
+            background: rgba(255, 170, 0, 0.15);
+            border: 1px solid rgba(255, 170, 0, 0.35);
+            color: var(--ui-color);
+        }
+
+        /* -------------------------------------------------------------
+       INFO CARDS (SUBSECTIONS) & TALKING POINT FOCUS
+    ------------------------------------------------------------- */
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            justify-content: space-evenly;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                opacity 0.35s ease,
+                background-color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.35s ease;
+        }
+
+        .info-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            transition: color 0.3s ease, transform 0.3s ease;
+        }
+
+        .card-body h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 2px;
+            transition: color 0.3s ease;
+        }
+
+        .card-body p {
+            font-size: 0.88rem;
+            line-height: 1.35;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        /* Active Sub-section / Card Focus State */
+        .info-card.active-card {
+            transform: scale(1.045) !important;
+            z-index: 10;
+            opacity: 1 !important;
+        }
+
+        .section-col[data-step="1"] .info-card.active-card {
+            background: rgba(0, 170, 255, 0.16) !important;
+            border-color: var(--backend-color) !important;
+            box-shadow: 0 8px 30px var(--backend-card-glow);
+        }
+
+        .section-col[data-step="1"] .info-card.active-card .card-icon {
+            color: var(--backend-color);
+            transform: scale(1.12);
+        }
+
+        .section-col[data-step="2"] .info-card.active-card {
+            background: rgba(123, 120, 255, 0.16) !important;
+            border-color: var(--server-color) !important;
+            box-shadow: 0 8px 30px var(--server-card-glow);
+        }
+
+        .section-col[data-step="2"] .info-card.active-card .card-icon {
+            color: var(--server-color);
+            transform: scale(1.12);
+        }
+
+        .section-col[data-step="3"] .info-card.active-card {
+            background: rgba(255, 170, 0, 0.16) !important;
+            border-color: var(--ui-color) !important;
+            box-shadow: 0 8px 30px var(--ui-card-glow);
+        }
+
+        .section-col[data-step="3"] .info-card.active-card .card-icon {
+            color: var(--ui-color);
+            transform: scale(1.12);
+        }
+
+        /* When a card in this column is active, soften other sibling cards */
+        .section-col.has-active-card .info-card:not(.active-card) {
+            opacity: 0.45;
+            transform: scale(0.985);
+        }
+
+        /* -------------------------------------------------------------
+       CONNECTOR COLUMNS (Columns 2 & 4)
+    ------------------------------------------------------------- */
+        .connector-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+        }
+
+        .connector-line-wrapper {
+            position: relative;
+            width: 100%;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stream-pipe {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+        }
+
+        .pulse-particle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 40px;
+            border-radius: 999px;
+            opacity: 0.3;
+        }
+
+        .pulse-fwd {
+            background: linear-gradient(90deg, transparent, #00d2ff, transparent);
+            animation: pipeFlow 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .pulse-bi-fwd {
+            background: linear-gradient(90deg, transparent, #ffaa00, transparent);
+            animation: pipeFlow 2.6s linear infinite;
+        }
+
+        .pulse-bi-rev {
+            background: linear-gradient(90deg, transparent, #7b78ff, transparent);
+            animation: pipeFlowRev 2.6s linear infinite;
+        }
+
+        @keyframes pipeFlow {
+            0% {
+                left: -40px;
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.9;
+            }
+
+            80% {
+                opacity: 0.9;
+            }
+
+            100% {
+                left: 100%;
+                opacity: 0;
+            }
+        }
+
+        @keyframes pipeFlowRev {
+            0% {
+                left: 100%;
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.9;
+            }
+
+            80% {
+                opacity: 0.9;
+            }
+
+            100% {
+                left: -40px;
+                opacity: 0;
+            }
+        }
+
+        .connector-badge {
+            position: relative;
+            z-index: 2;
+            background: #090e1b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-align: center;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 130px;
+            transition: all 0.4s ease;
+        }
+
+        .connector-badge .label {
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #e2e8f0;
+        }
+
+        .connector-badge .arrow-symbol {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        /* -------------------------------------------------------------
+       SECTION COLUMN STATE MANAGEMENT
+    ------------------------------------------------------------- */
+        /* State 0: Overview State */
+        body[data-active-state="0"] .section-col {
+            opacity: 0.95;
+            transform: scale(1);
+        }
+
+        body[data-active-state="0"] .info-card {
+            opacity: 1;
+        }
+
+        /* States 1, 2, 3: Focus Modes */
+        body[data-active-state="1"] .section-col:not([data-step="1"]),
+        body[data-active-state="2"] .section-col:not([data-step="2"]),
+        body[data-active-state="3"] .section-col:not([data-step="3"]) {
+            opacity: 0.28;
+            filter: blur(1.5px);
+            transform: scale(0.98);
+            pointer-events: auto;
+        }
+
+        /* Active Column Styling */
+        body[data-active-state="1"] .section-col[data-step="1"] {
+            border-color: var(--backend-color);
+            box-shadow: 0 0 40px var(--backend-glow);
+            transform: translateY(-4px) scale(1.01);
+            opacity: 1;
+            filter: none;
+        }
+
+        body[data-active-state="1"] .section-col[data-step="1"] .info-card:not(.active-card) {
+            background: var(--backend-bg);
+            border-color: rgba(0, 170, 255, 0.2);
+        }
+
+        body[data-active-state="1"] .section-col[data-step="1"] .card-icon {
+            color: var(--backend-color);
+        }
+
+        body[data-active-state="2"] .section-col[data-step="2"] {
+            border-color: var(--server-color);
+            box-shadow: 0 0 40px var(--server-glow);
+            transform: translateY(-4px) scale(1.01);
+            opacity: 1;
+            filter: none;
+        }
+
+        body[data-active-state="2"] .section-col[data-step="2"] .info-card:not(.active-card) {
+            background: var(--server-bg);
+            border-color: rgba(123, 120, 255, 0.2);
+        }
+
+        body[data-active-state="2"] .section-col[data-step="2"] .card-icon {
+            color: var(--server-color);
+        }
+
+        body[data-active-state="3"] .section-col[data-step="3"] {
+            border-color: var(--ui-color);
+            box-shadow: 0 0 40px var(--ui-glow);
+            transform: translateY(-4px) scale(1.01);
+            opacity: 1;
+            filter: none;
+        }
+
+        body[data-active-state="3"] .section-col[data-step="3"] .info-card:not(.active-card) {
+            background: var(--ui-bg);
+            border-color: rgba(255, 170, 0, 0.2);
+        }
+
+        body[data-active-state="3"] .section-col[data-step="3"] .card-icon {
+            color: var(--ui-color);
+        }
+
+        /* Active Connectors */
+        body[data-active-state="1"] #conn-1-2,
+        body[data-active-state="2"] #conn-1-2 {
+            opacity: 1;
+        }
+
+        body[data-active-state="1"] #conn-1-2 .connector-badge,
+        body[data-active-state="2"] #conn-1-2 .connector-badge {
+            border-color: var(--backend-color);
+            box-shadow: 0 0 20px var(--backend-glow);
+        }
+
+        body[data-active-state="1"] #conn-1-2 .pulse-particle,
+        body[data-active-state="2"] #conn-1-2 .pulse-particle {
+            opacity: 1;
+            height: 3px;
+        }
+
+        body[data-active-state="2"] #conn-2-3,
+        body[data-active-state="3"] #conn-2-3 {
+            opacity: 1;
+        }
+
+        body[data-active-state="2"] #conn-2-3 .connector-badge,
+        body[data-active-state="3"] #conn-2-3 .connector-badge {
+            border-color: var(--ui-color);
+            box-shadow: 0 0 20px var(--ui-glow);
+        }
+
+        body[data-active-state="2"] #conn-2-3 .pulse-particle,
+        body[data-active-state="3"] #conn-2-3 .pulse-particle {
+            opacity: 1;
+            height: 3px;
+        }
+
+        /* -------------------------------------------------------------
+       FOOTER CONTROLS & STEP INDICATOR
+    ------------------------------------------------------------- */
+        footer {
+            width: 100%;
+            max-width: 1780px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .key-hints {
+            display: flex;
+            gap: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+        }
+
+        kbd {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            padding: 2px 6px;
+            color: #fff;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            transform: scale(1.3);
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .dot[data-target="0"].active {
+            background: #fff;
+            color: #fff;
+        }
+
+        .dot[data-target="1"].active {
+            background: var(--backend-color);
+            color: var(--backend-color);
+        }
+
+        .dot[data-target="2"].active {
+            background: var(--server-color);
+            color: var(--server-color);
+        }
+
+        .dot[data-target="3"].active {
+            background: var(--ui-color);
+            color: var(--ui-color);
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body data-active-state="0">
+
+    <!-- HEADER -->
+    <header>
+        <div class="title-group">
+            <h1>CROO System Architecture &amp; Network Topology</h1>
+            <span class="subtitle-badge">End-to-End Mission Workflow</span>
+        </div>
+        <div class="kiosk-status">
+            <div class="kiosk-indicator" id="kiosk-led"></div>
+            <span id="kiosk-label">Auto-Play: Active (9s)</span>
+            <kbd>A</kbd>
+        </div>
+    </header>
+
+    <!-- 5-COLUMN MAIN INTERACTIVE DIAGRAM -->
+    <main class="diagram-wrapper">
+
+        <!-- COL 1: BACKEND (Space Segment / Payload) -->
+        <section class="section-col" data-step="1">
+            <div class="section-header">
+                <div class="section-icon">
+                    <!-- Satellite SVG -->
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 7 9 3 5 7l4 4"></path>
+                        <path d="m17 11 4 4-4 4-4-4"></path>
+                        <path d="m8 12 4 4 6-6-4-4Z"></path>
+                        <path d="m16 8 3-3"></path>
+                        <path d="M9 21a6 6 0 0 0-6-6"></path>
+                    </svg>
+                </div>
+                <div class="section-headings">
+                    <h2>Backend</h2>
+                    <div class="section-subtext">Space Segment / Payload</div>
+                </div>
+                <span class="tag-pill">ON-ORBIT ANALYSIS</span>
+            </div>
+
+            <div class="card-list">
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04Z" />
+                            <path
+                                d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>3x ML Models</h3>
+                        <p>Autonomous detection algorithms</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                            <path d="m3.3 7 8.7 5 8.7-5" />
+                            <path d="M12 22V12" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Python in Docker</h3>
+                        <p>Containerized deployment</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect width="16" height="16" x="4" y="4" rx="2" />
+                            <rect width="6" height="6" x="9" y="9" rx="1" />
+                            <path d="M15 2v2" />
+                            <path d="M15 20v2" />
+                            <path d="M2 15h2" />
+                            <path d="M2 9h2" />
+                            <path d="M20 15h2" />
+                            <path d="M20 9h2" />
+                            <path d="M9 2v2" />
+                            <path d="M9 20v2" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>All Analysis On-Orbit</h3>
+                        <p>Real-time onboard processing</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M4.93 4.93a10 10 0 0 1 14.14 0" />
+                            <path d="M7.76 7.76a6 6 0 0 1 8.48 0" />
+                            <circle cx="12" cy="12" r="2" />
+                            <line x1="12" y1="14" x2="12" y2="22" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Alert Transmission</h3>
+                        <p>Telemetry stream to CROO server</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COL 2: CONNECTOR 1 -> 2 (Downlink Alert Stream) -->
+        <div class="connector-col" id="conn-1-2">
+            <div class="connector-line-wrapper">
+                <div class="stream-pipe">
+                    <div class="pulse-particle pulse-fwd"></div>
+                </div>
+                <div class="connector-badge">
+                    <span class="label">Downlink Alert Stream</span>
+                    <span class="arrow-symbol">─────▶</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- COL 3: ENTERPRISE SERVER (Ground Segment / CROO) -->
+        <section class="section-col" data-step="2">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect width="20" height="8" x="2" y="2" rx="2" />
+                        <rect width="20" height="8" x="2" y="14" rx="2" />
+                        <line x1="6" y1="6" x2="6.01" y2="6" />
+                        <line x1="6" y1="18" x2="6.01" y2="18" />
+                    </svg>
+                </div>
+                <div class="section-headings">
+                    <h2>Enterprise Server</h2>
+                    <div class="section-subtext">Ground Segment / CROO</div>
+                </div>
+                <span class="tag-pill">CENTRAL HUB</span>
+            </div>
+
+            <div class="card-list">
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <ellipse cx="12" cy="5" rx="9" ry="3" />
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Database &amp; Storage</h3>
+                        <p>Centralized event data store</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="16 18 22 12 16 6" />
+                            <polyline points="8 6 2 12 8 18" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>REST API</h3>
+                        <p>Data access layer</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Machine Logs</h3>
+                        <p>Telemetry &amp; audit trails</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="2" y1="12" x2="22" y2="12" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Hosts UI WebApp</h3>
+                        <p>Serves web frontend</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>SPARTA Library</h3>
+                        <p>Aerospace cyber framework</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COL 4: CONNECTOR 2 <-> 3 (WebSockets / HTTPS Bi-dir) -->
+        <div class="connector-col" id="conn-2-3">
+            <div class="connector-line-wrapper">
+                <div class="stream-pipe">
+                    <div class="pulse-particle pulse-bi-fwd"></div>
+                    <div class="pulse-particle pulse-bi-rev"></div>
+                </div>
+                <div class="connector-badge">
+                    <span class="label">WebSockets / HTTPS (Bi-dir)</span>
+                    <span class="arrow-symbol">◀─────▶</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- COL 5: UI / CONSOLE (Operator Interface) -->
+        <section class="section-col" data-step="3">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect width="20" height="14" x="2" y="3" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                </div>
+                <div class="section-headings">
+                    <h2>UI / Console</h2>
+                    <div class="section-subtext">Operator Interface</div>
+                </div>
+                <span class="tag-pill">REAL-TIME DASHBOARD</span>
+            </div>
+
+            <div class="card-list">
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Alert Dashboard</h3>
+                        <p>Real-time threat notification</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="4" y1="21" x2="4" y2="14" />
+                            <line x1="4" y1="10" x2="4" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12" y2="3" />
+                            <line x1="20" y1="21" x2="20" y2="16" />
+                            <line x1="20" y1="12" x2="20" y2="3" />
+                            <line x1="1" y1="14" x2="7" y2="14" />
+                            <line x1="9" y1="8" x2="15" y2="8" />
+                            <line x1="17" y1="16" x2="23" y2="16" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Operator Interface</h3>
+                        <p>Interactive control panel</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Operator Log Entry</h3>
+                        <p>Manual log &amp; action record</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Remediation Tracking</h3>
+                        <p>Incident resolution state</p>
+                    </div>
+                </div>
+
+                <div class="info-card" tabindex="0">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            <line x1="11" y1="8" x2="11" y2="14" />
+                            <line x1="8" y1="11" x2="14" y2="11" />
+                        </svg>
+                    </div>
+                    <div class="card-body">
+                        <h3>Intelligence Analysis</h3>
+                        <p>Forensic &amp; threat profiling</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="key-hints">
+            <span><kbd>→</kbd> / <kbd>Space</kbd> Advance</span>
+            <span><kbd>←</kbd> Back</span>
+            <span><kbd>Click Card</kbd> Spotlight</span>
+            <span><kbd>Esc</kbd> / <kbd>Home</kbd> Reset</span>
+            <span><kbd>A</kbd> Auto-play</span>
+        </div>
+
+        <div class="stepper">
+            <button class="nav-btn" id="prev-btn">◀ Prev</button>
+            <div class="step-dots">
+                <div class="dot active" data-target="0" title="Overview"></div>
+                <div class="dot" data-target="1" title="Backend"></div>
+                <div class="dot" data-target="2" title="Enterprise Server"></div>
+                <div class="dot" data-target="3" title="UI / Console"></div>
+            </div>
+            <button class="nav-btn" id="next-btn">Next ▶</button>
+        </div>
+    </footer>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        (function () {
+            let currentState = 0; // 0 = Overview, 1 = Backend, 2 = Enterprise, 3 = UI/Console
+            let activeCard = null;
+            let autoPlayActive = true;
+            let autoPlayTimer = null;
+            let userPauseTimer = null;
+            let scrollLocked = false;
+            const STEP_DURATION = 9000;
+            const RESUME_AFTER_INACTIVITY = 25000; // Resumes auto-play after 25s of inactivity
+
+            const body = document.body;
+            const dots = document.querySelectorAll('.dot');
+            const led = document.getElementById('kiosk-led');
+            const kioskLabel = document.getElementById('kiosk-label');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const sections = document.querySelectorAll('.section-col');
+            const cards = document.querySelectorAll('.info-card');
+
+            function clearActiveCard() {
+                if (activeCard) {
+                    activeCard.classList.remove('active-card');
+                    const parentCol = activeCard.closest('.section-col');
+                    if (parentCol) parentCol.classList.remove('has-active-card');
+                    activeCard = null;
+                }
+            }
+
+            function highlightCard(card) {
+                if (activeCard === card) {
+                    // Toggle off if clicked again
+                    clearActiveCard();
+                    return;
+                }
+
+                clearActiveCard();
+                activeCard = card;
+                card.classList.add('active-card');
+                const parentCol = card.closest('.section-col');
+                if (parentCol) {
+                    parentCol.classList.add('has-active-card');
+                    const colStep = parseInt(parentCol.getAttribute('data-step'), 10);
+                    if (currentState !== colStep) {
+                        setState(colStep, false); // Switch to this column if not already
+                    }
+                }
+            }
+
+            function setState(newState, clearCard = true) {
+                if (newState < 0) newState = 0;
+                if (newState > 3) newState = 3;
+                currentState = newState;
+
+                if (clearCard) {
+                    clearActiveCard();
+                }
+
+                body.setAttribute('data-active-state', currentState);
+
+                // Update Dots
+                dots.forEach(dot => {
+                    const target = parseInt(dot.getAttribute('data-target'), 10);
+                    dot.classList.toggle('active', target === currentState);
+                });
+            }
+
+            function nextStep() {
+                clearActiveCard();
+                setState(currentState === 3 ? 0 : currentState + 1);
+            }
+
+            function prevStep() {
+                clearActiveCard();
+                setState(currentState === 0 ? 3 : currentState - 1);
+            }
+
+            // Kiosk Auto-Play Engine
+            function runAutoPlay() {
+                if (!autoPlayActive) return;
+                nextStep();
+            }
+
+            function startAutoPlay() {
+                clearInterval(autoPlayTimer);
+                autoPlayTimer = setInterval(runAutoPlay, STEP_DURATION);
+                led.classList.remove('paused');
+                kioskLabel.textContent = 'Auto-Play: Active (9s)';
+            }
+
+            function pauseAutoPlayTemporarily() {
+                clearInterval(autoPlayTimer);
+                clearTimeout(userPauseTimer);
+                led.classList.add('paused');
+                kioskLabel.textContent = 'Auto-Play: Paused (User Active)';
+
+                if (autoPlayActive) {
+                    userPauseTimer = setTimeout(() => {
+                        startAutoPlay();
+                    }, RESUME_AFTER_INACTIVITY);
+                }
+            }
+
+            function toggleAutoPlay() {
+                autoPlayActive = !autoPlayActive;
+                if (autoPlayActive) {
+                    startAutoPlay();
+                } else {
+                    clearInterval(autoPlayTimer);
+                    clearTimeout(userPauseTimer);
+                    led.classList.add('paused');
+                    kioskLabel.textContent = 'Auto-Play: Disabled';
+                }
+            }
+
+            // Keyboard Controls
+            window.addEventListener('keydown', (e) => {
+                pauseAutoPlayTemporarily();
+
+                switch (e.key) {
+                    case 'ArrowRight':
+                    case 'ArrowDown':
+                    case 'PageDown':
+                    case ' ': // Spacebar
+                        e.preventDefault();
+                        nextStep();
+                        break;
+                    case 'ArrowLeft':
+                    case 'ArrowUp':
+                    case 'PageUp':
+                        e.preventDefault();
+                        prevStep();
+                        break;
+                    case 'Escape':
+                    case 'Home':
+                        e.preventDefault();
+                        clearActiveCard();
+                        setState(0);
+                        break;
+                    case 'a':
+                    case 'A':
+                        e.preventDefault();
+                        toggleAutoPlay();
+                        break;
+                }
+            });
+
+            // Smooth Wheel/Trackpad Throttle Navigation
+            window.addEventListener('wheel', (e) => {
+                pauseAutoPlayTemporarily();
+                if (scrollLocked) return;
+
+                if (Math.abs(e.deltaY) > 35) {
+                    scrollLocked = true;
+                    if (e.deltaY > 0) {
+                        nextStep();
+                    } else {
+                        prevStep();
+                    }
+                    setTimeout(() => {
+                        scrollLocked = false;
+                    }, 600);
+                }
+            }, { passive: true });
+
+            // Direct Click on Section Headers / Empty Column Area
+            sections.forEach(col => {
+                col.addEventListener('click', (e) => {
+                    // If the click was directly on an info-card, let card handler deal with it
+                    if (e.target.closest('.info-card')) return;
+
+                    pauseAutoPlayTemporarily();
+                    const targetStep = parseInt(col.getAttribute('data-step'), 10);
+                    if (targetStep === currentState) {
+                        clearActiveCard();
+                    } else {
+                        setState(targetStep);
+                    }
+                });
+            });
+
+            // Direct Click on Individual Subsections / Info Cards
+            cards.forEach(card => {
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Don't bubble to section column
+                    pauseAutoPlayTemporarily();
+                    highlightCard(card);
+                });
+
+                // Accessible Enter / Space on Card
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        pauseAutoPlayTemporarily();
+                        highlightCard(card);
+                    }
+                });
+            });
+
+            // Direct Click on Step Indicator Dots
+            dots.forEach(dot => {
+                dot.addEventListener('click', () => {
+                    pauseAutoPlayTemporarily();
+                    setState(parseInt(dot.getAttribute('data-target'), 10));
+                });
+            });
+
+            // Prev / Next Buttons
+            prevBtn.addEventListener('click', () => {
+                pauseAutoPlayTemporarily();
+                prevStep();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                pauseAutoPlayTemporarily();
+                nextStep();
+            });
+
+            // Initialize
+            setState(0);
+            startAutoPlay();
+        })();
+    </script>
+</body>
+
+</html>
