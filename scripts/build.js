@@ -18,7 +18,8 @@ if (!fs.existsSync(sourceFile)) {
   process.exit(1);
 }
 fs.copyFileSync(sourceFile, path.join(workflowDir, 'index.html'));
-console.log('✓ Copied index.html -> dist/workflow/index.html');
+fs.copyFileSync(sourceFile, path.join(distDir, 'workflow.html'));
+console.log('✓ Copied index.html -> dist/workflow/index.html and dist/workflow.html');
 
 // 3. Create Cloudflare Pages _redirects file
 const redirectsContent = `/  /workflow  302\n`;
