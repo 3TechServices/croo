@@ -5,6 +5,7 @@
   "observability": {
     "enabled": true
   },
+  "workers_dev": true,
   "assets": {
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
